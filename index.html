@@ -1330,6 +1330,62 @@ if (supabaseClient) {
   });
 }
 
+<!-- Admin Dashboard -->
+<section id="adminDashboard" style="display:none; padding:24px;">
+  <h1>OutLay Admin Dashboard</h1>
+  <h3>Total Registered Users: <span id="totalUsers">0</span></h3>
+
+  <table border="1" cellpadding="10" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Registration Date</th>
+      </tr>
+    </thead>
+    <tbody id="usersTableBody"></tbody>
+  </table>
+</section>
+
+async function loadAdminDashboard(accessToken) {
+  const response = await fetch(
+    "https://expense-tracker-kbe6.onrender.com/api/admin/users",
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Admin access denied or users could not load.");
+  }
+
+  const data = await response.json();
+
+  document.getElementById("adminDashboard").style.display = "block";
+  document.getElementById("totalUsers").textContent = data.totalUsers;
+
+  document.getElementById("usersTableBody").innerHTML =
+    data.users.map(user => `
+      <tr>
+        <td>${escapeHtml(user.fullName || "—")}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+      </tr>
+    `).join("");
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
 initializeApp();
 </script>
 </body>
