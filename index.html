@@ -1211,7 +1211,7 @@ $("continuePremium").addEventListener("click", async () => {
   message.textContent = "Connecting to Razorpay...";
 
   try {
-    const apiBase = "http://127.0.0.1:3001";
+    const apiBase = "https://expense-tracker-kbe6.onrender.com";
     const response = await fetch(
       `${apiBase}/api/create-subscription`,
       {
