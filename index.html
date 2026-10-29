@@ -1203,7 +1203,6 @@ $("laterPremium").addEventListener("click", closePremiumModal);
 premiumOverlay.addEventListener("click", e => { if(e.target === premiumOverlay) closePremiumModal(); });
 
 // Razorpay subscription endpoint from your existing Node backend.
-// Razorpay subscription handler — Render backend
 $("continuePremium").addEventListener("click", async () => {
   const button = $("continuePremium");
   const message = $("premiumModalMessage");
@@ -1212,13 +1211,12 @@ $("continuePremium").addEventListener("click", async () => {
   message.textContent = "Connecting to Razorpay...";
 
   try {
+    const apiBase = "http://127.0.0.1:3001";
     const response = await fetch(
-      "https://expense-tracker-kbe6.onrender.com/api/create-subscription",
+      `${apiBase}/api/create-subscription`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
       }
     );
@@ -1229,28 +1227,22 @@ $("continuePremium").addEventListener("click", async () => {
     try {
       data = JSON.parse(responseText);
     } catch {
-      throw new Error(
-        "Invalid server response. Please check your backend."
-      );
+      throw new Error("Invalid response from backend. Check the server terminal.");
     }
 
     if (!response.ok) {
-      throw new Error(
-        data.error || `Payment request failed (${response.status}).`
-      );
+      throw new Error(data.error || `Request failed (${response.status})`);
     }
 
     if (!data.shortUrl) {
-      throw new Error("Razorpay checkout URL was not returned.");
+      throw new Error("Razorpay did not return a subscription URL.");
     }
 
-    message.textContent = "Opening Razorpay checkout...";
+    message.textContent = "Opening Razorpay...";
     window.location.href = data.shortUrl;
-
   } catch (error) {
     console.error("Razorpay error:", error);
-    message.textContent =
-      error.message || "Unable to connect to the payment server.";
+    message.textContent = error.message;
     button.disabled = false;
   }
 });
