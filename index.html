@@ -589,6 +589,10 @@
 
       <button class="primary-btn" style="width:100%" type="submit" id="authSubmit">Login</button>
       <p id="authMessage" class="message" role="status"></p>
+
+      <div class="switch-row" style="margin-top:10px">
+        <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot Password?</button>
+      </div>
     </form>
 
     <div class="switch-row">
@@ -1085,6 +1089,7 @@ function updateAuthMode() {
   $("authPassword").autocomplete = signup ? "new-password" : "current-password";
   $("authSwitchText").textContent = signup ? "Already have an account?" : "Don't have an account?";
   $("authSwitchBtn").textContent = signup ? "Login" : "Sign Up";
+  $("forgotPasswordBtn").hidden = signup;
 }
 
 $("topProfile").addEventListener("click", () => openAuthModal("login"));
@@ -1153,6 +1158,39 @@ $("authForm").addEventListener("submit", async event => {
     submit.disabled = false;
   }
 });
+
+// --- Forgot Password Logic ---
+async function forgotPassword(email) {
+  if (!email) {
+    alert("Please enter your email address first.");
+    return;
+  }
+
+  if (!supabaseClient) {
+    alert("Supabase is not configured. Please add your Supabase URL and key first.");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(
+    email,
+    {
+      redirectTo:
+        "https://expensetrackeroutlay.netlify.app/reset-password.html"
+    }
+  );
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Password reset link sent. Please check your email.");
+}
+
+$("forgotPasswordBtn").addEventListener("click", () => {
+  forgotPassword($("authEmail").value.trim());
+});
+// -------------------------------------
 
 document.querySelectorAll("[data-period] [data-range]").forEach(button => button.addEventListener("click", () => {
   const page = button.closest("[data-period]").dataset.period;
