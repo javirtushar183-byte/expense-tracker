@@ -1,5 +1,17 @@
+
+"use strict";
+
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const Razorpay = require("razorpay");
 const { createClient } = require("@supabase/supabase-js");
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Supabase admin client — initialize after dotenv
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -10,49 +22,29 @@ const supabaseAdmin = createClient(
     }
   }
 );
-"use strict";
-
-require("dotenv").config();
-
-const express = require("express");
-const cors = require("cors");
-const Razorpay = require("razorpay");
-
-const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Allowed frontend origins
-const allowedOrigins = [
-  "https://expensetrackeroutlay.netlify.app",
-  "http://127.0.0.1:5500",
-  "http://localhost:5500",
-  "http://127.0.0.1:5501",
-  "http://localhost:5501"
-];
-
-// CORS configuration
 const allowedOrigins = [
   "https://expense-tracker-six-nu-96.vercel.app",
   "https://expensetrackeroutlay.netlify.app",
   "http://localhost:5500",
-  "http://127.0.0.1:5500"
+  "http://127.0.0.1:5500",
+  "http://localhost:5501",
+  "http://127.0.0.1:5501"
 ];
 
+// CORS
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
+      return callback(null, true);
     }
+    return callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.options("*", cors());
-
-// Parse JSON request bodies
 app.use(express.json());
 
 // Home route
@@ -65,6 +57,7 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+// Admin users route
 app.get("/api/admin/users", async (req, res) => {
   try {
     const authHeader = req.headers.authorization || "";
@@ -76,7 +69,6 @@ app.get("/api/admin/users", async (req, res) => {
       return res.status(401).json({ error: "Login required." });
     }
 
-    // Verify the logged-in user's Supabase access token.
     const { data, error } =
       await supabaseAdmin.auth.getUser(token);
 
@@ -86,7 +78,6 @@ app.get("/api/admin/users", async (req, res) => {
       });
     }
 
-    // Only the configured admin email can access the list.
     const adminEmail = (process.env.ADMIN_EMAIL || "")
       .trim()
       .toLowerCase();
@@ -100,7 +91,6 @@ app.get("/api/admin/users", async (req, res) => {
       });
     }
 
-    // Fetch registered accounts, including pagination.
     const users = [];
     const perPage = 100;
     let page = 1;
@@ -131,6 +121,7 @@ app.get("/api/admin/users", async (req, res) => {
       totalUsers: users.length,
       users
     });
+
   } catch (error) {
     console.error("Admin users error:", error.message);
     return res.status(500).json({
@@ -139,7 +130,7 @@ app.get("/api/admin/users", async (req, res) => {
   }
 });
 
-// Initialize Razorpay securely on the backend
+// Razorpay
 function getRazorpay() {
   const key_id = process.env.RAZORPAY_KEY_ID;
   const key_secret = process.env.RAZORPAY_KEY_SECRET;
@@ -148,13 +139,10 @@ function getRazorpay() {
     throw new Error("Razorpay environment variables are missing.");
   }
 
-  return new Razorpay({
-    key_id,
-    key_secret
-  });
+  return new Razorpay({ key_id, key_secret });
 }
 
-// Create Razorpay subscription
+// Create subscription
 app.post("/api/create-subscription", async (req, res) => {
   try {
     const planId = process.env.RAZORPAY_PLAN_ID;
@@ -178,25 +166,20 @@ app.post("/api/create-subscription", async (req, res) => {
       subscriptionId: subscription.id,
       shortUrl: subscription.short_url
     });
-  } catch (error) {
-    console.error(
-      "Subscription creation failed:",
-      error.message
-    );
 
+  } catch (error) {
+    console.error("Subscription creation failed:", error.message);
     return res.status(500).json({
       error: "Unable to create Razorpay subscription."
     });
   }
 });
 
-// Handle unexpected errors
+// Error handler
 app.use((err, req, res, next) => {
   console.error("Server error:", err.message);
 
-  if (res.headersSent) {
-    return next(err);
-  }
+  if (res.headersSent) return next(err);
 
   return res.status(500).json({
     error: "An unexpected server error occurred."
