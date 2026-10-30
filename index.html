@@ -1173,38 +1173,43 @@ $("authModal").addEventListener("click", event => {
 });
 
 // --- FIXED: authForm handler (structure corrected) ---
+
 $("authForm").addEventListener("submit", async event => {
   event.preventDefault();
 
   const email = $("authEmail").value.trim();
   const password = $("authPassword").value;
   const fullName = $("authName").value.trim();
+
   const submit = $("authSubmit");
   const message = $("authMessage");
+  const adminDashboard = $("adminDashboard");
 
   if (!supabaseClient) {
-    message.style.color = "#b91c1c";
-    message.textContent = "Add your Supabase Project URL and publishable/anon key near the top of the script first.";
+    message.textContent = "Supabase is not configured.";
     return;
   }
 
   submit.disabled = true;
+  message.textContent = "Please wait...";
   message.style.color = "#64748b";
-  message.textContent = authMode === "signup" ? "Creating account..." : "Signing in...";
 
   try {
+    // SIGNUP
     if (authMode === "signup") {
       const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } }
+        options: {
+          data: { full_name: fullName }
+        }
       });
 
       if (error) throw error;
 
       if (!data.session) {
-        message.style.color = "#087f79";
-        message.textContent = "Account created. Check your email for the confirmation link, then log in.";
+        message.textContent =
+          "Account created. Please verify your email and log in.";
         return;
       }
 
@@ -1215,28 +1220,38 @@ $("authForm").addEventListener("submit", async event => {
       return;
     }
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
+    // LOGIN
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
 
     if (error) throw error;
 
     currentUser = data.user;
 
+    console.log("Admin API call started");
+
+    // CHECK ADMIN ACCESS
     const response = await fetch(
       "https://expense-tracker-kbe6.onrender.com/api/admin/users",
       {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${data.session.access_token}`
         }
       }
     );
 
+    console.log("Admin API status:", response.status);
+
     if (response.ok) {
       const result = await response.json();
 
-      $("adminDashboard").style.display = "block";
+      // SHOW ADMIN DASHBOARD
+      adminDashboard.style.display = "block";
+
       $("totalUsers").textContent = result.totalUsers;
 
       $("usersTableBody").innerHTML = result.users.map(user => `
@@ -1247,28 +1262,33 @@ $("authForm").addEventListener("submit", async event => {
         </tr>
       `).join("");
 
+      // Hide normal dashboard for admin
+      $("dashboard").style.display = "none";
+
     } else if (response.status === 401 || response.status === 403) {
-      $("adminDashboard").style.display = "none";
+
+      // NORMAL USER
+      adminDashboard.style.display = "none";
       updateUserUI();
       await loadTransactions();
+
     } else {
-      throw new Error("Unable to load dashboard. Check backend settings.");
+      const result = await response.json();
+      throw new Error(result.error || "Unable to load admin dashboard.");
     }
 
     closeAuthModal();
 
-    if (currentPage === "profile") {
-      setPage("profile");
-    }
-
   } catch (error) {
     console.error("Authentication error:", error);
     message.style.color = "#b91c1c";
-    message.textContent = error.message || "Authentication failed.";
+    message.textContent = error.message || "Login failed.";
+
   } finally {
     submit.disabled = false;
   }
 });
+
 // -----------------------------------------------------
 
 // --- Forgot Password Logic (preserved, top-level) ---
