@@ -31,22 +31,26 @@ const allowedOrigins = [
 ];
 
 // CORS configuration
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests without an Origin header, such as health checks
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+const allowedOrigins = [
+  "https://expense-tracker-six-nu-96.vercel.app",
+  "https://expensetrackeroutlay.netlify.app",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
+];
 
-      console.error("CORS blocked origin:", origin);
-      return callback(new Error("Origin not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    optionsSuccessStatus: 204
-  })
-);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+app.options("*", cors());
 
 // Parse JSON request bodies
 app.use(express.json());
