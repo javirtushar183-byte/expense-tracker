@@ -1165,18 +1165,22 @@ $("authModal").addEventListener("click", event => {
   if (event.target === $("authModal")) closeAuthModal();
 });
 
+// --- FIXED: authForm handler (structure corrected) ---
 $("authForm").addEventListener("submit", async event => {
   event.preventDefault();
+
   const email = $("authEmail").value.trim();
   const password = $("authPassword").value;
   const fullName = $("authName").value.trim();
   const submit = $("authSubmit");
   const message = $("authMessage");
+
   if (!supabaseClient) {
     message.style.color = "#b91c1c";
     message.textContent = "Add your Supabase Project URL and publishable/anon key near the top of the script first.";
     return;
   }
+
   submit.disabled = true;
   message.style.color = "#64748b";
   message.textContent = authMode === "signup" ? "Creating account..." : "Signing in...";
@@ -1188,12 +1192,15 @@ $("authForm").addEventListener("submit", async event => {
         password,
         options: { data: { full_name: fullName } }
       });
+
       if (error) throw error;
+
       if (!data.session) {
         message.style.color = "#087f79";
         message.textContent = "Account created. Check your email for the confirmation link, then log in.";
         return;
       }
+
       currentUser = data.user;
       updateUserUI();
       closeAuthModal();
@@ -1201,42 +1208,31 @@ $("authForm").addEventListener("submit", async event => {
       return;
     }
 
-    // --- LOGIN (with Admin Dashboard check) ---
-    
-try {
-  const { data, error } =
-    await supabaseClient.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     });
 
-  if (error) throw error;
+    if (error) throw error;
 
-  currentUser = data.user;
+    currentUser = data.user;
 
-  console.log("ADMIN API CHECK STARTED");
-  console.log("ACCESS TOKEN:", !!data.session?.access_token);
-
-  const response = await fetch(
-    "https://expense-tracker-kbe6.onrender.com/api/admin/users",
-    {
-      headers: {
-        Authorization: `Bearer ${data.session.access_token}`
+    const response = await fetch(
+      "https://expense-tracker-kbe6.onrender.com/api/admin/users",
+      {
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`
+        }
       }
-    }
-  );
+    );
 
-  console.log("ADMIN API STATUS:", response.status);
+    if (response.ok) {
+      const result = await response.json();
 
-  if (response.ok) {
-    const result = await response.json();
+      $("adminDashboard").style.display = "block";
+      $("totalUsers").textContent = result.totalUsers;
 
-    document.getElementById("adminDashboard").style.display = "block";
-    document.getElementById("totalUsers").textContent =
-      result.totalUsers;
-
-    document.getElementById("usersTableBody").innerHTML =
-      result.users.map(user => `
+      $("usersTableBody").innerHTML = result.users.map(user => `
         <tr>
           <td>${escapeHtml(user.fullName || "—")}</td>
           <td>${escapeHtml(user.email)}</td>
@@ -1244,35 +1240,31 @@ try {
         </tr>
       `).join("");
 
-  } else if (response.status === 401 || response.status === 403) {
-    document.getElementById("adminDashboard").style.display = "none";
-    updateUserUI();
-    await loadTransactions();
+    } else if (response.status === 401 || response.status === 403) {
+      $("adminDashboard").style.display = "none";
+      updateUserUI();
+      await loadTransactions();
+    } else {
+      throw new Error("Unable to load dashboard. Check backend settings.");
+    }
 
-  } else {
-    const errorText = await response.text();
-    console.error("Admin API error:", errorText);
-    throw new Error("Unable to load dashboard. Please try again.");
+    closeAuthModal();
+
+    if (currentPage === "profile") {
+      setPage("profile");
+    }
+
+  } catch (error) {
+    console.error("Authentication error:", error);
+    message.style.color = "#b91c1c";
+    message.textContent = error.message || "Authentication failed.";
+  } finally {
+    submit.disabled = false;
   }
+});
+// -----------------------------------------------------
 
-  closeAuthModal();
-
-  if (currentPage === "profile") {
-    setPage("profile");
-  }
-
-} catch (error) {
-  console.error("Authentication error:", error);
-  message.style.color = "#b91c1c";
-  message.textContent =
-    error.message || "Authentication failed. Please try again.";
-
-} finally {
-  submit.disabled = false;
-}
-
-
-// --- Forgot Password Logic ---
+// --- Forgot Password Logic (preserved, top-level) ---
 async function forgotPassword(email) {
   if (!email) {
     alert("Please enter your email address first.");
@@ -1303,7 +1295,7 @@ async function forgotPassword(email) {
 $("forgotPasswordBtn").addEventListener("click", () => {
   forgotPassword($("authEmail").value.trim());
 });
-// -------------------------------------
+// ----------------------------------------------------
 
 document.querySelectorAll("[data-period] [data-range]").forEach(button => button.addEventListener("click", () => {
   const page = button.closest("[data-period]").dataset.period;
