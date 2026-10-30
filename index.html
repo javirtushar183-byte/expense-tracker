@@ -1211,7 +1211,8 @@ $("authForm").addEventListener("submit", async event => {
     if (error) throw error;
 
     currentUser = data.user;
-
+    console.log("ADMIN API CHECK STARTED");
+    console.log("ACCESS TOKEN:", !!data.session?.access_token);
     // Check whether this account has admin access
     try {
       const response = await fetch(
