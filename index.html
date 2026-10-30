@@ -626,11 +626,15 @@
 </div>
 
 <!-- Admin Dashboard -->
-<section id="adminDashboard" style="display:none; padding:24px;">
+<section id="adminDashboard" style="display:none;padding:25px">
   <h1>OutLay Admin Dashboard</h1>
-  <h3>Total Registered Users: <span id="totalUsers">0</span></h3>
 
-  <table border="1" cellpadding="10" cellspacing="0">
+  <h2>Total Registered Users:
+    <span id="totalUsers">0</span>
+  </h2>
+
+  <h2>Registered Users</h2>
+  <table border="1" cellpadding="10">
     <thead>
       <tr>
         <th>Name</th>
@@ -640,6 +644,9 @@
     </thead>
     <tbody id="usersTableBody"></tbody>
   </table>
+
+  <h2>Payment Details</h2>
+  <p>Payment records will be loaded from Razorpay backend.</p>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
