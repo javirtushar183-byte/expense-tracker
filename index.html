@@ -625,6 +625,23 @@
   </div>
 </div>
 
+<!-- Admin Dashboard -->
+<section id="adminDashboard" style="display:none; padding:24px;">
+  <h1>OutLay Admin Dashboard</h1>
+  <h3>Total Registered Users: <span id="totalUsers">0</span></h3>
+
+  <table border="1" cellpadding="10" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Registration Date</th>
+      </tr>
+    </thead>
+    <tbody id="usersTableBody"></tbody>
+  </table>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 "use strict";
@@ -675,6 +692,47 @@ function safeText(value) {
   span.textContent = String(value ?? "");
   return span.innerHTML;
 }
+
+// --- Admin Dashboard Helpers ---
+async function loadAdminDashboard(accessToken) {
+  const response = await fetch(
+    "https://expense-tracker-kbe6.onrender.com/api/admin/users",
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Admin access denied or users could not load.");
+  }
+
+  const data = await response.json();
+
+  document.getElementById("adminDashboard").style.display = "block";
+  document.getElementById("totalUsers").textContent = data.totalUsers;
+
+  document.getElementById("usersTableBody").innerHTML =
+    data.users.map(user => `
+      <tr>
+        <td>${escapeHtml(user.fullName || "—")}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+      </tr>
+    `).join("");
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+// -------------------------------------
 
 // --- ADVANCED AI CHATBOT LOGIC ---
 function appendChatMessage(text, isUser = false) {
@@ -1143,12 +1201,62 @@ $("authForm").addEventListener("submit", async event => {
       return;
     }
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    // --- LOGIN (with Admin Dashboard check) ---
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
     if (error) throw error;
+
     currentUser = data.user;
-    updateUserUI();
+
+    // Check whether this account has admin access
+    try {
+      const response = await fetch(
+        "https://expense-tracker-kbe6.onrender.com/api/admin/users",
+        {
+          headers: {
+            Authorization: `Bearer ${data.session.access_token}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        // Admin login: hide normal dashboard and show admin dashboard
+        document.getElementById("adminDashboard").style.display = "block";
+
+        const result = await response.json();
+
+        document.getElementById("totalUsers").textContent =
+          result.totalUsers;
+
+        document.getElementById("usersTableBody").innerHTML =
+          result.users.map(user => `
+            <tr>
+              <td>${escapeHtml(user.fullName || "—")}</td>
+              <td>${escapeHtml(user.email)}</td>
+              <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+            </tr>
+          `).join("");
+
+        // Hide your regular dashboard sections here if needed.
+      } else if (response.status === 403 || response.status === 401) {
+        // Normal user: keep existing dashboard flow
+        document.getElementById("adminDashboard").style.display = "none";
+        updateUserUI();
+        await loadTransactions();
+      } else {
+        throw new Error("Unable to verify account access. Please try again.");
+      }
+    } catch (err) {
+      console.error("Dashboard loading error:", err);
+      throw err;
+    }
+
     closeAuthModal();
-    await loadTransactions();
+
     if (currentPage === "profile") setPage("profile");
   } catch (error) {
     console.error("Authentication error:", error);
@@ -1226,6 +1334,7 @@ $("logoutBtn").addEventListener("click", async () => {
   }
   currentUser = null;
   transactions = [];
+  document.getElementById("adminDashboard").style.display = "none";
   updateUserUI();
   renderDashboard();
   setPage("dashboard");
